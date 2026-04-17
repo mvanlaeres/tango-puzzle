@@ -1,0 +1,59 @@
+from pathlib import Path
+
+from fastapi import FastAPI, Query, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+
+from puzzle.generator import generate_puzzle
+from puzzle.validator import validate
+
+app = FastAPI(title="Tango Puzzle API")
+
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+
+app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.get("/")
+def index():
+    return HTMLResponse(content=(FRONTEND_DIR / "index.html").read_text(encoding="utf-8"))
+
+
+DIFFICULTY = {
+    "facile":    {"min_visible": 18, "max_clues": 12},
+    "moyen":     {"min_visible": 12, "max_clues": 8},
+    "difficile": {"min_visible": 6,  "max_clues": 5},
+    "extreme":   {"min_visible": 0,  "max_clues": 8},
+}
+
+
+@app.get("/puzzle")
+def get_puzzle(
+    size: int = Query(default=6, ge=4, le=6),
+    difficulty: str = Query(default="moyen"),
+):
+    if size % 2 != 0:
+        raise HTTPException(status_code=400, detail="size must be even")
+    if difficulty not in DIFFICULTY:
+        raise HTTPException(status_code=400, detail=f"difficulty must be one of {list(DIFFICULTY)}")
+    return generate_puzzle(size, **DIFFICULTY[difficulty])
+
+
+class ValidateRequest(BaseModel):
+    grid: list[list[str | None]]
+    clues: list[dict]
+    partial: bool = True
+
+
+@app.post("/validate")
+def post_validate(body: ValidateRequest):
+    size = len(body.grid)
+    if size == 0 or any(len(row) != size for row in body.grid):
+        raise HTTPException(status_code=400, detail="grid must be square")
+    return validate(body.grid, body.clues, size, body.partial)

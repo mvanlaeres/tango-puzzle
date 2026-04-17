@@ -1,0 +1,342 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: sans-serif;
+  background: #f0f0f0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  gap: 1.5rem;
+}
+
+#game-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+#controls-left {
+  position: absolute;
+  right: calc(100% + 2rem);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+#right-col {
+  position: absolute;
+  left: calc(100% + 2rem);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 200px;
+}
+
+#click-legend {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 0.6rem 1rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.click-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.click-n { color: #666; }
+.click-item .sun  { font-size: 1.1rem; color: #f59e0b; }
+.click-item .moon { font-size: 1.1rem; color: #6366f1; }
+
+#rules {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  width: 200px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+#rules h2 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #999;
+  margin-bottom: 0.75rem;
+}
+
+#rules ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+#rules li {
+  font-size: 0.85rem;
+  color: #444;
+  line-height: 1.4;
+  padding-left: 0.9rem;
+  position: relative;
+}
+
+#rules li::before {
+  content: '–';
+  position: absolute;
+  left: 0;
+  color: #bbb;
+}
+
+#rules .sun  { color: #f59e0b; }
+#rules .moon { color: #6366f1; }
+
+#rules .rule-sign {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #aaa;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #555;
+  vertical-align: middle;
+  margin-right: 2px;
+}
+
+#rules em {
+  font-style: normal;
+  font-weight: 600;
+  color: #222;
+}
+
+#board-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#timer-container {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 0.45rem 0.85rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+#timer-icon {
+  font-size: 1.05rem;
+}
+
+
+#board {
+  display: grid;
+  background: #fff;
+  border: 2px solid #bbb;
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 10px;
+}
+
+.cell {
+  margin: -10px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  z-index: 1;
+}
+
+.cell.fixed { background: transparent; cursor: default; }
+.cell.error { background: #fee2e2; color: #dc2626; }
+.cell.error:hover { background: #fecaca; }
+
+.clue-h {
+  width: 20px;
+  height: 64px;
+  background: transparent;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.clue-h::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: #bbb;
+  transform: translateX(-50%);
+}
+
+.clue-h.clue-equal::before,
+.clue-h.clue-opposite::before {
+  bottom: auto;
+  height: calc(50% - 11px);
+}
+
+.clue-h.clue-equal::after,
+.clue-h.clue-opposite::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 11px);
+  bottom: 0;
+  width: 1.5px;
+  background: #bbb;
+  transform: translateX(-50%);
+}
+
+.clue-v {
+  width: 64px;
+  height: 20px;
+  background: transparent;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.clue-v::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: #bbb;
+  transform: translateY(-50%);
+}
+
+.clue-v.clue-equal::before,
+.clue-v.clue-opposite::before {
+  right: auto;
+  width: calc(50% - 11px);
+}
+
+.clue-v.clue-equal::after,
+.clue-v.clue-opposite::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: calc(50% + 11px);
+  right: 0;
+  height: 1.5px;
+  background: #bbb;
+  transform: translateY(-50%);
+}
+
+.clue-corner {
+  background: transparent;
+  position: relative;
+  pointer-events: none;
+}
+
+.clue-corner::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: #bbb;
+  transform: translateX(-50%);
+}
+
+.clue-corner::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: #bbb;
+  transform: translateY(-50%);
+}
+
+.clue-h span,
+.clue-v span {
+  position: relative;
+  z-index: 1;
+  padding: 0 2px;
+  font-size: 1.3rem;
+  font-weight: 300;
+  color: #888;
+}
+
+
+button {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.95rem;
+  border: none;
+  border-radius: 4px;
+  background: #333;
+  color: #fff;
+  cursor: pointer;
+}
+
+button:hover { background: #555; }
+button:disabled { background: #ccc; cursor: not-allowed; }
+
+select {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+#status {
+  font-size: 1rem;
+  min-height: 1.4rem;
+}
+
+#status.ok   { color: #2e7d32; font-weight: bold; }
+#status.warn { color: #b71c1c; }
+
+#timer {
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+  color: #555;
+}
+#timer.running { color: #222; }
+#timer.done    { color: #2e7d32; }

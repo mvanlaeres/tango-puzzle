@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tango</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div id="game-wrapper">
+  <div id="controls-left">
+    <select id="difficulty" onchange="newPuzzle()">
+      <option value="facile">Facile</option>
+      <option value="moyen" selected>Moyen</option>
+      <option value="difficile">Difficile</option>
+      <option value="extreme">Extrême</option>
+    </select>
+    <button onclick="newPuzzle()">Nouveau</button>
+  </div>
+  <div id="board-header">
+    <div id="timer-container">
+      <span id="timer-icon">⏱</span>
+      <span id="timer">00:00</span>
+    </div>
+    <button id="btn-reset" onclick="resetPuzzle()">Réinitialiser</button>
+  </div>
+  <div id="board"></div>
+  <div id="right-col">
+    <div id="click-legend">
+      <div class="click-item"><span class="click-n">1 clic</span><span class="sun">☀</span></div>
+      <div class="click-item"><span class="click-n">2 clics</span><span class="moon">☾</span></div>
+    </div>
+    <div id="rules">
+      <h2>Règles</h2>
+      <ul>
+        <li>Chaque ligne et colonne contient autant de <span class="sun">☀</span> que de <span class="moon">☾</span></li>
+        <li>Pas plus de 2 symboles identiques côte à côte</li>
+        <li><span class="rule-sign">=</span> les deux cases ont le <em>même</em> symbole</li>
+        <li><span class="rule-sign">×</span> les deux cases ont des symboles <em>différents</em></li>
+      </ul>
+    </div>
+  </div>
+</div>
+<div id="status"></div>
+
+<script>
+  const SYMBOLS = [null, 'S', 'L'];
+  const ICONS   = { S: '☀', L: '☾' };
+
+  let state = { size: 0, fixed: [], grid: [], clues: [], errorCells: [], solved: false };
+
+  // ── Minuteur ───────────────────────────────────────────────────────
+  let timerInterval = null;
+  let timerStart    = null;
+
+  function formatTime(ms) {
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    return `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  }
+
+  function formatTimeText(ms) {
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    if (m === 0) return `${sec} seconde${sec > 1 ? 's' : ''}`;
+    return `${m} min et ${sec} seconde${sec > 1 ? 's' : ''}`;
+  }
+
+  function startTimer() {
+    if (timerInterval) return; // déjà démarré
+    timerStart = Date.now();
+    const el = document.getElementById('timer');
+    el.className = 'running';
+    timerInterval = setInterval(() => {
+      el.textContent = formatTime(Date.now() - timerStart);
+    }, 1000);
+  }
+
+  function stopTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    const ms = Date.now() - timerStart;
+    const el = document.getElementById('timer');
+    el.className = 'done';
+    el.textContent = formatTime(ms);
+    return formatTimeText(ms);
+  }
+
+  function resetTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    timerStart    = null;
+    const el = document.getElementById('timer');
+    el.className   = '';
+    el.textContent = '00:00';
+  }
+
+  // ── API ────────────────────────────────────────────────────────────
+
+  async function newPuzzle() {
+    clearTimeout(validateTimer);
+    resetTimer();
+    setStatus('');
+    document.getElementById('btn-reset').disabled = false;
+    const difficulty = document.getElementById('difficulty').value;
+    const res  = await fetch(`/puzzle?size=6&difficulty=${difficulty}`);
+    const data = await res.json();
+    state.size       = data.size;
+    state.fixed      = data.puzzle.map(row => row.map(v => v));
+    state.grid       = data.puzzle.map(row => row.map(v => v));
+    state.clues      = data.clues;
+    state.errorCells = [];
+    state.solved      = false;
+    render();
+  }
+
+  let validateTimer = null;
+  let validateAbort = null;
+
+  function scheduleValidation() {
+    clearTimeout(validateTimer);
+    if (validateAbort) { validateAbort.abort(); validateAbort = null; }
+    validateAbort = new AbortController();
+    const { signal } = validateAbort;
+    validateTimer = setTimeout(async () => {
+      try {
+        const res  = await fetch('/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ grid: state.grid, clues: state.clues, partial: true }),
+          signal,
+        });
+        const data = await res.json();
+        validateAbort = null;
+        applyErrorCells(data.error_cells);
+      } catch (e) {
+        if (e.name !== 'AbortError') throw e;
+      }
+    }, 600);
+  }
+
+  async function checkWin() {
+    const res  = await fetch('/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ grid: state.grid, clues: state.clues, partial: false }),
+    });
+    const data = await res.json();
+    applyErrorCells(data.error_cells);
+    if (data.valid && data.complete)  { state.solved = true; document.getElementById('btn-reset').disabled = true; const t = stopTimer(); setStatus(`Puzzle résolu en ${t} !`, 'ok'); }
+    else if (!data.complete)          setStatus('Grille incomplète.', 'warn');
+    else                              setStatus('Solution incorrecte.', 'warn');
+  }
+
+  function applyErrorCells(errorCells) {
+    document.querySelectorAll('.cell.error').forEach(el => el.classList.remove('error'));
+    state.errorCells = errorCells || [];
+    paintErrors();
+  }
+
+  function paintErrors() {
+    for (const [r, c] of state.errorCells) {
+      const el = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+      if (el) el.classList.add('error');
+    }
+  }
+
+  // ── Interactions ───────────────────────────────────────────────────
+
+  function cellClick(r, c) {
+    if (state.solved) return;
+    if (state.fixed[r][c] !== null) return;
+    const cur = state.grid[r][c];
+    state.grid[r][c] = SYMBOLS[(SYMBOLS.indexOf(cur) + 1) % SYMBOLS.length];
+    if (validateAbort) { validateAbort.abort(); validateAbort = null; }
+    state.errorCells = state.errorCells.filter(([er, ec]) => er !== r || ec !== c);
+    if (state.grid[r][c] !== null) startTimer();
+    // Mise à jour ciblée de la case — pas de reconstruction complète du board
+    const cellEl = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+    if (cellEl) {
+      cellEl.textContent = state.grid[r][c] ? ICONS[state.grid[r][c]] : '';
+      cellEl.classList.remove('error');
+    }
+    const complete = state.grid.every(row => row.every(v => v !== null));
+    if (complete) checkWin();
+    else scheduleValidation();
+  }
+
+  // ── Rendu ──────────────────────────────────────────────────────────
+
+  function render() {
+    const { size, grid, fixed, clues } = state;
+    const board  = document.getElementById('board');
+    const slots  = 2 * size - 1;
+    const cellPx = 64, cluePx = 20;
+
+    // Template columns : cellPx cluePx cellPx ...
+    const tpl = Array.from({ length: slots }, (_, i) =>
+      i % 2 === 0 ? `${cellPx}px` : `${cluePx}px`
+    ).join(' ');
+    board.style.gridTemplateColumns = tpl;
+    board.innerHTML = '';
+
+    // Index des clues pour accès O(1)
+    const clueMap = {};
+    for (const cl of clues) {
+      clueMap[`${cl.cell1}-${cl.cell2}`] = cl.type;
+    }
+
+    for (let gi = 0; gi < slots; gi++) {
+      for (let gj = 0; gj < slots; gj++) {
+        const el = document.createElement('div');
+        const evenI = gi % 2 === 0, evenJ = gj % 2 === 0;
+
+        if (evenI && evenJ) {
+          // Case de jeu
+          const r = gi / 2, c = gj / 2;
+          const val = grid[r][c];
+          el.className = 'cell' + (fixed[r][c] !== null ? ' fixed' : '');
+          el.dataset.row = r;
+          el.dataset.col = c;
+          el.textContent = val ? ICONS[val] : '';
+          if (fixed[r][c] === null) el.onclick = () => cellClick(r, c);
+
+        } else if (evenI && !evenJ) {
+          // Clue horizontale entre (r, c) et (r, c+1)
+          const r = gi / 2, c = (gj - 1) / 2;
+          const type = clueMap[`${r},${c}-${r},${c + 1}`];
+          el.className = 'clue-h' + (type ? ` clue-${type}` : '');
+          if (type) { const s = document.createElement('span'); s.textContent = type === 'equal' ? '=' : '×'; el.appendChild(s); }
+
+        } else if (!evenI && evenJ) {
+          // Clue verticale entre (r, c) et (r+1, c)
+          const r = (gi - 1) / 2, c = gj / 2;
+          const type = clueMap[`${r},${c}-${r + 1},${c}`];
+          el.className = 'clue-v' + (type ? ` clue-${type}` : '');
+          if (type) { const s = document.createElement('span'); s.textContent = type === 'equal' ? '=' : '×'; el.appendChild(s); }
+
+        } else {
+          // Coin
+          el.className = 'clue-corner';
+          el.style.width  = `${cluePx}px`;
+          el.style.height = `${cluePx}px`;
+        }
+
+        board.appendChild(el);
+      }
+    }
+
+    // Réappliquer les erreurs connues après reconstruction du DOM
+    paintErrors();
+  }
+
+  function setStatus(msg, cls = '') {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className   = cls;
+  }
+
+  function resetPuzzle() {
+    clearTimeout(validateTimer);
+    setStatus('');
+    state.grid       = state.fixed.map(row => row.map(v => v));
+    state.errorCells = [];
+    state.solved      = false;
+    render();
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────
+  newPuzzle();
+</script>
+</body>
+</html>
