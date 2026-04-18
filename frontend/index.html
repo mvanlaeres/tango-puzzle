@@ -16,6 +16,7 @@
       <option value="extreme">Extrême</option>
     </select>
     <button onclick="newPuzzle()">Nouveau</button>
+    <button id="btn-hint" onclick="requestHint()">Indice <span id="hint-count"></span></button>
   </div>
   <div id="board-header">
     <div id="timer-container">
@@ -25,6 +26,7 @@
     <button id="btn-reset" onclick="resetPuzzle()">Réinitialiser</button>
   </div>
   <div id="board"></div>
+  <div id="hint-panel"></div>
   <div id="right-col">
     <div id="click-legend">
       <div class="click-item"><span class="click-n">1 clic</span><span class="sun">☀</span></div>
@@ -47,7 +49,8 @@
   const SYMBOLS = [null, 'S', 'L'];
   const ICONS   = { S: '☀', L: '☾' };
 
-  let state = { size: 0, fixed: [], grid: [], clues: [], errorCells: [], solved: false };
+  let state = { size: 0, fixed: [], grid: [], clues: [], errorCells: [], solved: false, hintsUsed: 0 };
+  const MAX_HINTS = 3;
 
   // ── Minuteur ───────────────────────────────────────────────────────
   let timerInterval = null;
@@ -112,6 +115,9 @@
     state.clues      = data.clues;
     state.errorCells = [];
     state.solved      = false;
+    state.hintsUsed   = 0;
+    clearHintPanel();
+    updateHintButton();
     render();
   }
 
@@ -148,7 +154,7 @@
     });
     const data = await res.json();
     applyErrorCells(data.error_cells);
-    if (data.valid && data.complete)  { state.solved = true; document.getElementById('btn-reset').disabled = true; const t = stopTimer(); setStatus(`Puzzle résolu en ${t} !`, 'ok'); }
+    if (data.valid && data.complete)  { state.solved = true; document.getElementById('btn-reset').disabled = true; updateHintButton(); const t = stopTimer(); setStatus(`Puzzle résolu en ${t} !`, 'ok'); }
     else if (!data.complete)          setStatus('Grille incomplète.', 'warn');
     else                              setStatus('Solution incorrecte.', 'warn');
   }
@@ -175,6 +181,10 @@
     state.grid[r][c] = SYMBOLS[(SYMBOLS.indexOf(cur) + 1) % SYMBOLS.length];
     if (validateAbort) { validateAbort.abort(); validateAbort = null; }
     state.errorCells = state.errorCells.filter(([er, ec]) => er !== r || ec !== c);
+    // Remove hint highlights when the user plays
+    document.querySelectorAll('.cell.hint-target, .cell.hint-step').forEach(el => {
+      el.classList.remove('hint-target', 'hint-step');
+    });
     if (state.grid[r][c] !== null) startTimer();
     // Mise à jour ciblée de la case — pas de reconstruction complète du board
     const cellEl = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
@@ -264,7 +274,118 @@
     state.grid       = state.fixed.map(row => row.map(v => v));
     state.errorCells = [];
     state.solved      = false;
+    clearHintPanel();
     render();
+  }
+
+  // ── Indices ────────────────────────────────────────────────────────
+
+  function updateHintButton() {
+    const btn = document.getElementById('btn-hint');
+    const ctr = document.getElementById('hint-count');
+    const remaining = MAX_HINTS - state.hintsUsed;
+    ctr.textContent = `(${remaining})`;
+    btn.disabled = state.solved || remaining <= 0;
+  }
+
+  function clearHintPanel() {
+    document.getElementById('hint-panel').innerHTML = '';
+    // Remove any existing hint highlights
+    document.querySelectorAll('.cell.hint-target, .cell.hint-step').forEach(el => {
+      el.classList.remove('hint-target', 'hint-step');
+    });
+  }
+
+  async function requestHint() {
+    if (state.solved || state.hintsUsed >= MAX_HINTS) return;
+    const btn = document.getElementById('btn-hint');
+    btn.disabled = true;
+
+    const res  = await fetch('/hint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ grid: state.grid, clues: state.clues }),
+    });
+    const data = await res.json();
+
+    state.hintsUsed++;
+    updateHintButton();
+
+    if (!data.hint) {
+      renderHintPanel(null);
+      return;
+    }
+
+    renderHintPanel(data.hint);
+    highlightHint(data.hint);
+  }
+
+  function highlightHint(hint) {
+    document.querySelectorAll('.cell.hint-target, .cell.hint-step').forEach(el => {
+      el.classList.remove('hint-target', 'hint-step');
+    });
+    // Highlight the target cell
+    const [r, c] = hint.cell;
+    const target = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+    if (target) target.classList.add('hint-target');
+    // Highlight cells mentioned in steps
+    for (const step of hint.steps) {
+      if (!step.cell) continue;
+      const [sr, sc] = step.cell;
+      if (sr === r && sc === c) continue;
+      const el = document.querySelector(`[data-row="${sr}"][data-col="${sc}"]`);
+      if (el) el.classList.add('hint-step');
+    }
+  }
+
+  function renderHintPanel(hint) {
+    const panel = document.getElementById('hint-panel');
+    if (!hint) {
+      panel.innerHTML = '<p class="hint-none">Aucun indice trouvé — la grille est peut-être déjà résolue ou invalide.</p>';
+      return;
+    }
+
+    const [r, c] = hint.cell;
+    let html = `<div class="hint-header">La case (${r+1},${c+1}) doit être <span class="hint-sym">${hint.symbol}</span></div>`;
+
+    if (hint.kind === 'direct') {
+      html += buildChain(hint.steps, `Explication : `);
+    } else if (hint.pivot === null) {
+      // Level 1 — contradiction
+      html += buildChain(hint.steps, `Explication : en supposant ${ICONS[hint.value === 'S' ? 'L' : 'S']} ici, `);
+    } else {
+      // Level 2 — pivot
+      const [pr, pc] = hint.pivot.cell;
+      html += buildChain(hint.steps, `Explication : en supposant ${ICONS[hint.value === 'S' ? 'L' : 'S']} ici, `);
+      html += `<div class="hint-pivot-intro">Quelle que soit la valeur de (${pr+1},${pc+1}), contradiction :</div>`;
+      html += `<div class="hint-cases">`;
+      html += `<div class="hint-case"><div class="hint-case-label">Si (${pr+1},${pc+1}) = ☀</div>${buildChain(hint.pivot.case_a, '')}</div>`;
+      html += `<div class="hint-case"><div class="hint-case-label">Si (${pr+1},${pc+1}) = ☾</div>${buildChain(hint.pivot.case_b, '')}</div>`;
+      html += `</div>`;
+    }
+
+    panel.innerHTML = html;
+  }
+
+  function buildChain(steps, intro) {
+    if (!steps || steps.length === 0) return '';
+    let html = '';
+    if (intro && steps[0] && steps[0].reason_type !== 'contradiction') {
+      html += `<div class="hint-intro">${intro}${steps[0].reason}</div>`;
+      steps = steps.slice(1);
+    } else if (intro) {
+      html += `<div class="hint-intro">${intro}</div>`;
+    }
+    html += '<div class="hint-steps">';
+    for (const s of steps) {
+      if (s.reason_type === 'contradiction') {
+        html += `<div class="hint-contradiction">Contradiction : ${s.reason}</div>`;
+      } else {
+        html += `<div class="hint-step-reason">${s.reason}</div>`;
+      }
+    }
+    html += '</div>';
+    return html;
   }
 
   // ── Init ───────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from puzzle.generator import generate_puzzle
 from puzzle.validator import validate
+from puzzle.hint import find_hint
 
 app = FastAPI(title="Tango Puzzle API")
 
@@ -57,3 +58,19 @@ def post_validate(body: ValidateRequest):
     if size == 0 or any(len(row) != size for row in body.grid):
         raise HTTPException(status_code=400, detail="grid must be square")
     return validate(body.grid, body.clues, size, body.partial)
+
+
+class HintRequest(BaseModel):
+    grid: list[list[str | None]]
+    clues: list[dict]
+
+
+@app.post("/hint")
+def post_hint(body: HintRequest):
+    size = len(body.grid)
+    if size == 0 or any(len(row) != size for row in body.grid):
+        raise HTTPException(status_code=400, detail="grid must be square")
+    hint = find_hint(body.grid, body.clues, size)
+    if hint is None:
+        return {"hint": None}
+    return {"hint": hint}

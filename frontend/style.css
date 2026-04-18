@@ -340,3 +340,90 @@ select {
 }
 #timer.running { color: #222; }
 #timer.done    { color: #2e7d32; }
+
+/* ── Hint highlights ─────────────────────────────────────────────── */
+
+.cell.hint-target {
+  background: #fef9c3;
+  outline: 2px solid #f59e0b;
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+.cell.hint-step {
+  background: #eff6ff;
+}
+
+/* ── Hint panel ──────────────────────────────────────────────────── */
+
+#hint-panel {
+  font-size: 0.82rem;
+  color: #444;
+  line-height: 1.5;
+  max-width: 460px;
+}
+
+.hint-none {
+  color: #888;
+  font-style: italic;
+}
+
+.hint-header {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #222;
+  margin-bottom: 0.5rem;
+}
+
+.hint-sym {
+  font-size: 1rem;
+}
+
+.hint-intro {
+  color: #666;
+  margin-bottom: 0.3rem;
+}
+
+.hint-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.hint-step-reason {
+  color: #444;
+}
+
+.hint-contradiction {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.hint-pivot-intro {
+  color: #666;
+  margin: 0.4rem 0 0.3rem;
+}
+
+.hint-cases {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.hint-case {
+  flex: 1;
+}
+
+.hint-case-label {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #555;
+  margin-bottom: 0.2rem;
+}
+
+/* ── Hint button counter ─────────────────────────────────────────── */
+
+#btn-hint #hint-count {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
