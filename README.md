@@ -59,28 +59,6 @@ L'interface est accessible sur [http://localhost:8000](http://localhost:8000).
 | `POST` | `/validate` | Valide une grille (partielle ou complète) |
 | `GET` | `/health` | Statut du serveur |
 
-### Paramètres de `/puzzle`
-
-| Paramètre | Type | Valeurs | Défaut |
-|-----------|------|---------|--------|
-| `size` | int | `4`, `6` | `6` |
-| `difficulty` | string | `facile`, `moyen`, `difficile`, `extreme` | `moyen` |
-
-**Exemple :**
-```
-GET /puzzle?size=6&difficulty=difficile
-```
-
-### Corps de `/validate`
-
-```json
-{
-  "grid": [["S", "L", null], ...],
-  "clues": [{"cell1": [0,0], "cell2": [0,1], "type": "equal"}],
-  "partial": true
-}
-```
-
 ## Tests
 
 ```bash
