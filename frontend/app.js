@@ -1,5 +1,65 @@
 const SYMBOLS = [null, 'S', 'L'];
-const ICONS   = { S: '☀', L: '☾' };
+const COLOR_NAMES = { S: 'jaune', L: 'bleu' };
+const COLUMN_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+function symbolMarkup(value, size = '') {
+  if (!value) return '';
+  const sizeClass = size ? ` token-${size}` : '';
+  const label = COLOR_NAMES[value];
+  return `<span class="token token-${value}${sizeClass}" aria-label="${label}" title="${label}"></span>`;
+}
+
+function colorWordToMarkup(name) {
+  if (name === 'jaune') return symbolMarkup('S', 'inline');
+  if (name === 'bleu') return symbolMarkup('L', 'inline');
+  return name;
+}
+
+function formatLegacyCell(row, col) {
+  return formatCell([Number(row) - 1, Number(col) - 1]);
+}
+
+function renderReasonText(text) {
+  if (!text) return '';
+  return text
+    .replace(/\((\d+),(\d+)\)–\((\d+),(\d+)\)/g, (_, r1, c1, r2, c2) =>
+      `${formatLegacyCell(r1, c1)} a ${formatLegacyCell(r2, c2)}`
+    )
+    .replace(/\((\d+),(\d+)\)/g, (_, r, c) => formatLegacyCell(r, c))
+    .replace(/Cette case doit contenir un jaune, car /g, '')
+    .replace(/Cette case doit contenir un bleu, car /g, '')
+    .replace(/cette case doit contenir un jaune, car /g, '')
+    .replace(/cette case doit contenir un bleu, car /g, '')
+    .replace(/\bjaune\b/g, symbolMarkup('S', 'inline'))
+    .replace(/\bbleu\b/g, symbolMarkup('L', 'inline'));
+}
+
+function formatContradictionText(text) {
+  if (!text) return '';
+  const trimmed = text.trim().replace(/[.]+$/g, '');
+
+  let match = trimmed.match(/^la case \((\d+),(\d+)\) devrait valoir (jaune|bleu), mais on a déjà déduit (jaune|bleu) pour cette case$/i);
+  if (match) {
+    const [, row, col, expected, actual] = match;
+    return `Cette hypothèse mène à une contradiction : ${formatLegacyCell(row, col)} devrait contenir ${colorWordToMarkup(expected.toLowerCase())}, mais cette case a déjà été déduite comme ${colorWordToMarkup(actual.toLowerCase())}.`;
+  }
+
+  match = trimmed.match(/^la case \((\d+),(\d+)\) devrait valoir (jaune|bleu) mais est déjà (jaune|bleu)$/i);
+  if (match) {
+    const [, row, col, expected, actual] = match;
+    return `Cette hypothèse mène à une contradiction : ${formatLegacyCell(row, col)} devrait contenir ${colorWordToMarkup(expected.toLowerCase())}, mais cette case contient déjà ${colorWordToMarkup(actual.toLowerCase())}.`;
+  }
+
+  match = trimmed.match(/^trois cases (jaune|bleu) consécutives en \((\d+),(\d+)\)–\((\d+),(\d+)\)$/i);
+  if (match) {
+    const [, value, r1, c1, r2, c2] = match;
+    return `Cette hypothèse mène à une contradiction : elle créerait trois symboles ${colorWordToMarkup(value.toLowerCase())} consécutifs entre ${formatLegacyCell(r1, c1)} et ${formatLegacyCell(r2, c2)}.`;
+  }
+
+  return formatSentence(trimmed)
+    .replace(/^La case ([A-Z]\d+) devrait valoir /, 'Cette hypothèse mène à une contradiction : $1 devrait contenir ')
+    .replace(/^La /, 'Cette hypothèse mène à une contradiction : la ');
+}
 
 let state = { size: 0, fixed: [], grid: [], clues: [], errorCells: [], solved: false, hintsUsed: 0 };
 const MAX_HINTS = 3;
@@ -153,11 +213,12 @@ function cellClick(r, c) {
     el.classList.remove('hint-target', 'hint-step');
   });
   document.getElementById('hint-panel').innerHTML = '';
+  setCoordinateVisibility(false);
   syncHintVisibility();
   if (state.grid[r][c] !== null) startTimer();
   const cellEl = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
   if (cellEl) {
-    cellEl.textContent = state.grid[r][c] ? ICONS[state.grid[r][c]] : '';
+    cellEl.innerHTML = symbolMarkup(state.grid[r][c], 'cell');
     cellEl.classList.remove('error');
   }
   const complete = state.grid.every((row) => row.every((v) => v !== null));
@@ -169,7 +230,7 @@ function cellClick(r, c) {
 
 function render() {
   const { size, grid, fixed, clues } = state;
-  const board  = document.getElementById('board');
+  const shell  = document.getElementById('board-shell');
   const slots  = 2 * size - 1;
   const cellPx = 64;
   const cluePx = 20;
@@ -177,8 +238,12 @@ function render() {
   const tpl = Array.from({ length: slots }, (_, i) =>
     i % 2 === 0 ? `${cellPx}px` : `${cluePx}px`
   ).join(' ');
-  board.style.gridTemplateColumns = tpl;
-  board.innerHTML = '';
+  shell.innerHTML = '<div id="board"></div>';
+  const nextBoard = document.getElementById('board');
+  nextBoard.style.gridTemplateColumns = tpl;
+  nextBoard.style.gridTemplateRows = tpl;
+  nextBoard.innerHTML = '';
+  const activeBoard = nextBoard;
 
   const clueMap = {};
   for (const cl of clues) {
@@ -198,7 +263,13 @@ function render() {
         el.className = 'cell' + (fixed[r][c] !== null ? ' fixed' : '');
         el.dataset.row = r;
         el.dataset.col = c;
-        el.textContent = val ? ICONS[val] : '';
+        el.innerHTML = symbolMarkup(val, 'cell');
+        if (r === size - 1) {
+          el.innerHTML += `<span class="cell-coord cell-coord-col">${COLUMN_LABELS[c]}</span>`;
+        }
+        if (c === size - 1) {
+          el.innerHTML += `<span class="cell-coord cell-coord-row">${size - r}</span>`;
+        }
         if (fixed[r][c] === null) el.onclick = () => cellClick(r, c);
       } else if (evenI && !evenJ) {
         const r = gi / 2;
@@ -226,7 +297,7 @@ function render() {
         el.style.height = `${cluePx}px`;
       }
 
-      board.appendChild(el);
+      activeBoard.appendChild(el);
     }
   }
 
@@ -263,6 +334,7 @@ function updateHintButton() {
 
 function clearHintPanel() {
   document.getElementById('hint-panel').innerHTML = '';
+  setCoordinateVisibility(false);
   document.querySelectorAll('.cell.hint-target, .cell.hint-step').forEach((el) => {
     el.classList.remove('hint-target', 'hint-step');
   });
@@ -313,112 +385,145 @@ function renderHintPanel(hint) {
   const panel = document.getElementById('hint-panel');
   if (!hint) {
     panel.innerHTML = '<p class="hint-none">Aucun indice trouvé — la grille est peut-être déjà résolue ou invalide.</p>';
+    setCoordinateVisibility(false);
     syncHintVisibility();
     return;
   }
 
-  const [r, c] = hint.cell;
-  let explanation = '';
-
-  if (hint.kind === 'direct') {
-    explanation = buildChain(hint.steps, '');
-  } else if (hint.pivot === null) {
-    explanation = buildHypothesisChain(hint.steps, [r, c], ICONS[hint.value === 'S' ? 'L' : 'S']);
-  } else {
-    const [pr, pc] = hint.pivot.cell;
-    explanation = buildHypothesisChain(hint.steps, [r, c], ICONS[hint.value === 'S' ? 'L' : 'S']);
-    explanation += `<div class="hint-pivot-intro">Quelle que soit la valeur de (${pr+1},${pc+1}), contradiction :</div>`;
-    explanation += `<div class="hint-cases">`;
-    explanation += `<div class="hint-case"><div class="hint-case-label">Si (${pr+1},${pc+1}) = ☀</div>${buildHypothesisCase(hint.pivot.case_a, [pr, pc], '☀')}</div>`;
-    explanation += `<div class="hint-case"><div class="hint-case-label">Si (${pr+1},${pc+1}) = ☾</div>${buildHypothesisCase(hint.pivot.case_b, [pr, pc], '☾')}</div>`;
-    explanation += `</div>`;
-  }
+  const wrongValue = hint.value === 'S' ? 'L' : 'S';
+  const summary = hint.kind === 'direct'
+    ? ''
+    : `Si on mettait ${symbolMarkup(wrongValue, 'inline')} en ${formatCell(hint.cell)}, on arriverait à une contradiction.`;
+  const explanation = hint.kind === 'direct'
+    ? buildDirectExplanation(hint.steps)
+    : buildHypothesisExplanation(hint, wrongValue);
 
   panel.innerHTML = `
-    <div class="hint-header">Le bon symbole ici est <span class="hint-sym">${hint.symbol}</span></div>
-    <details class="hint-details">
-      <summary class="hint-summary">Voir l’explication</summary>
-      <div class="hint-body">${explanation}</div>
-    </details>
+    <div class="hint-header">Cette case doit contenir un <span class="hint-sym">${symbolMarkup(hint.value, 'inline')}</span></div>
+    ${summary ? `<div class="hint-lead">${summary}</div>` : ''}
+    <div class="hint-body">${explanation}</div>
   `;
+  setCoordinateVisibility(true);
   syncHintVisibility();
 }
 
 function syncHintVisibility() {
   const panel = document.getElementById('hint-panel');
-  panel.style.display = panel.innerHTML.trim() !== '' ? '' : 'none';
+  const visible = panel.innerHTML.trim() !== '';
+  panel.style.display = visible ? '' : 'none';
 }
 
-function buildChain(steps, intro) {
-  if (!steps || steps.length === 0) return '';
-  let html = '';
-  if (intro && steps[0] && steps[0].reason_type !== 'contradiction') {
-    html += `<div class="hint-intro">${formatSentence(steps[0].reason)}</div>`;
-    steps = steps.slice(1);
-  } else if (intro) {
-    html += `<div class="hint-intro">${intro}</div>`;
+function setCoordinateVisibility(visible) {
+  document.querySelectorAll('.cell-coord').forEach((el) => {
+    el.classList.toggle('is-visible', visible);
+  });
+}
+
+function formatCell(cell) {
+  const [r, c] = cell;
+  return `${COLUMN_LABELS[c]}${state.size - r}`;
+}
+
+function buildHintCard(title, note = '', tone = '', noteIsHtml = false) {
+  const toneClass = tone ? ` hint-card-${tone}` : '';
+  return `
+    <div class="hint-card${toneClass}">
+      <div class="hint-card-title">${title}</div>
+      ${note ? `<div class="hint-card-note">${noteIsHtml ? note : renderReasonText(note)}</div>` : ''}
+    </div>
+  `;
+}
+
+function buildDeductionCards(steps) {
+  const deductions = (steps || []).filter((step) => step.cell && step.reason_type !== 'contradiction');
+  if (deductions.length === 0) {
+    return '<div class="hint-mini-note">Aucune déduction intermédiaire.</div>';
   }
-  html += '<div class="hint-steps">';
-  for (const s of steps) {
-    if (s.reason_type === 'contradiction') {
-      html += `<div class="hint-contradiction">Contradiction : ${formatSentence(s.reason)}</div>`;
-    } else {
-      html += `<div class="hint-step-reason">${formatSentence(s.reason)}</div>`;
-    }
+  let html = '<div class="hint-card-list">';
+  for (const step of deductions) {
+    html += buildHintCard(
+      `${formatCell(step.cell)} = ${symbolMarkup(step.value, 'inline')}`,
+      formatSentence(step.reason),
+    );
   }
   html += '</div>';
   return html;
 }
 
-function buildHypothesisChain(steps, hypothesisCell, wrongSymbol) {
-  if (!steps || steps.length === 0) return '';
-  const [r, c] = hypothesisCell;
-  let html = '<div class="hint-steps">';
-  html += `<div class="hint-step-reason"><span class="hint-prefix">Hypothèse :</span> ${wrongSymbol} en (${r+1},${c+1}).</div>`;
-
-  let previousStep = null;
-  for (const s of steps) {
-    if (s.reason_type === 'contradiction') {
-      let contradictionText = s.reason;
-      if (previousStep && previousStep.cell) {
-        const [pr, pc] = previousStep.cell;
-        contradictionText = `on vient de déduire ${previousStep.symbol} en (${pr+1},${pc+1}), mais ${s.reason}`;
-      }
-      html += `<div class="hint-contradiction"><span class="hint-prefix">Contradiction :</span> ${formatSentence(contradictionText)}</div>`;
-    } else {
-      const [sr, sc] = s.cell;
-      html += `<div class="hint-step-reason"><span class="hint-prefix">Implique :</span> ${s.symbol} en (${sr+1},${sc+1}), car ${formatClause(s.reason)}.</div>`;
-      previousStep = s;
-    }
-  }
-
-  html += '</div>';
-  return html;
+function buildContradictionCard(steps) {
+  const contradiction = (steps || []).find((step) => step.reason_type === 'contradiction');
+  if (!contradiction) return '';
+  return buildHintCard('Contradiction', formatContradictionText(contradiction.reason), 'danger', true);
 }
 
-function buildHypothesisCase(steps, hypothesisCell, symbol) {
-  if (!steps || steps.length === 0) return '';
-  let html = '<div class="hint-steps">';
-  if (hypothesisCell && symbol) {
-    const [r, c] = hypothesisCell;
-    html += `<div class="hint-step-reason"><span class="hint-prefix">Hypothèse :</span> ${symbol} en (${r+1},${c+1}).</div>`;
+function buildDirectExplanation(steps) {
+  const firstStep = (steps || []).find((step) => step.cell && step.reason_type !== 'contradiction');
+  const note = firstStep ? formatSentence(firstStep.reason) : '';
+  return `
+    <div class="hint-section">
+      <div class="hint-section-title">Pourquoi</div>
+      <div class="hint-mini-note">${renderReasonText(note)}</div>
+    </div>
+  `;
+}
+
+function buildHypothesisCaseDetails(steps, cell, symbol) {
+  return `
+    <div class="hint-section">
+      <div class="hint-section-title">Hypothèse</div>
+      ${buildHintCard(`${formatCell(cell)} = ${symbolMarkup(symbol, 'inline')}`)}
+    </div>
+    <div class="hint-section">
+      <div class="hint-section-title">Déductions</div>
+      ${buildDeductionCards(steps)}
+    </div>
+    <div class="hint-section">
+      <div class="hint-section-title">Issue</div>
+      ${buildContradictionCard(steps)}
+    </div>
+  `;
+}
+
+function buildHypothesisExplanation(hint, wrongValue) {
+  let html = `
+    <div class="hint-section">
+      <div class="hint-section-title">Hypothèse</div>
+      ${buildHintCard(`${formatCell(hint.cell)} = ${symbolMarkup(wrongValue, 'inline')}`)}
+    </div>
+    <div class="hint-section">
+      <div class="hint-section-title">Déductions</div>
+      ${buildDeductionCards(hint.steps)}
+    </div>
+  `;
+
+  if (hint.pivot === null) {
+    html += `
+      <div class="hint-section">
+        <div class="hint-section-title">Issue</div>
+        ${buildContradictionCard(hint.steps)}
+      </div>
+    `;
+    return html;
   }
-  let previousStep = null;
-  for (const s of steps) {
-    if (s.reason_type === 'contradiction') {
-      let contradictionText = s.reason;
-      if (previousStep && previousStep.cell) {
-        const [pr, pc] = previousStep.cell;
-        contradictionText = `on vient de déduire ${previousStep.symbol} en (${pr+1},${pc+1}), mais ${s.reason}`;
-      }
-      html += `<div class="hint-contradiction"><span class="hint-prefix">Contradiction :</span> ${formatSentence(contradictionText)}</div>`;
-    } else {
-      const [sr, sc] = s.cell;
-      html += `<div class="hint-step-reason"><span class="hint-prefix">Implique :</span> ${s.symbol} en (${sr+1},${sc+1}), car ${formatClause(s.reason)}.</div>`;
-      previousStep = s;
-    }
-  }
-  html += '</div>';
+
+  const pivotCell = formatCell(hint.pivot.cell);
+  html += `
+    <div class="hint-section">
+      <div class="hint-section-title">Conclusion</div>
+      <div class="hint-mini-note">Pour ${pivotCell}, les deux possibilités mènent à une contradiction.</div>
+    </div>
+    <div class="hint-case-stack">
+      <details class="hint-case-details">
+        <summary class="hint-case-summary">Si ${pivotCell} = ${symbolMarkup('S', 'inline')}</summary>
+        <div class="hint-case-body">${buildHypothesisCaseDetails(hint.pivot.case_a, hint.pivot.cell, 'S')}</div>
+      </details>
+      <details class="hint-case-details">
+        <summary class="hint-case-summary">Si ${pivotCell} = ${symbolMarkup('L', 'inline')}</summary>
+        <div class="hint-case-body">${buildHypothesisCaseDetails(hint.pivot.case_b, hint.pivot.cell, 'L')}</div>
+      </details>
+    </div>
+  `;
+
   return html;
 }
 

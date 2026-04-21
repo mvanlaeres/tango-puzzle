@@ -6,6 +6,7 @@ Clues = list[dict]
 SYMBOLS = ["S", "L"]
 OTHER   = {"S": "L", "L": "S"}
 ICONS   = {"S": "☀", "L": "☾"}
+NAMES   = {"S": "jaune", "L": "bleu"}
 
 
 class Contradiction(Exception):
@@ -24,7 +25,7 @@ def _step(
     return {
         "cell":        [r, c],
         "value":       value,
-        "symbol":      ICONS[value],
+        "symbol":      NAMES[value],
         "reason_type": reason_type,
         "reason":      reason,
         "premises":    [list(cell) for cell in (premises or [])],
@@ -46,7 +47,7 @@ def _hint(cell: tuple[int, int], value: str, steps: list[dict], kind: str, pivot
     return {
         "cell":   [r, c],
         "value":  value,
-        "symbol": ICONS[value],
+        "symbol": NAMES[value],
         "steps":  steps,
         "pivot":  pivot,
         "kind":   kind,
@@ -111,13 +112,13 @@ def propagate(
         if existing == OTHER[value]:
             if existing_working is not None:
                 reason = (
-                    f"la case ({r+1},{c+1}) devrait valoir {ICONS[value]} "
-                    f"mais est déjà {ICONS[OTHER[value]]}"
+                    f"la case ({r+1},{c+1}) devrait valoir {NAMES[value]} "
+                    f"mais est déjà {NAMES[OTHER[value]]}"
                 )
             else:
                 reason = (
-                    f"la case ({r+1},{c+1}) devrait valoir {ICONS[value]}, "
-                    f"mais on a déjà déduit {ICONS[OTHER[value]]} pour cette case"
+                    f"la case ({r+1},{c+1}) devrait valoir {NAMES[value]}, "
+                    f"mais on a déjà déduit {NAMES[OTHER[value]]} pour cette case"
                 )
             raise Contradiction(_chain_for_step(step, derived_steps) + [_contradiction(
                 reason
@@ -133,8 +134,8 @@ def propagate(
 
         if working[r][c] == OTHER[value]:
             raise Contradiction(_chain_for_step(causes.get((r, c)), derived_steps) + [_contradiction(
-                f"la case ({r+1},{c+1}) devrait valoir {ICONS[value]} "
-                f"mais est déjà {ICONS[OTHER[value]]}"
+                f"la case ({r+1},{c+1}) devrait valoir {NAMES[value]} "
+                f"mais est déjà {NAMES[OTHER[value]]}"
             )])
         if working[r][c] == value:
             continue
@@ -157,11 +158,11 @@ def propagate(
             sym = "=" if clue["type"] == "equal" else "×"
             if clue["type"] == "equal":
                 reason = (
-                    f"cette case doit avoir le même symbole qu’une case déjà remplie avec {ICONS[value]}"
+                    "cette case doit contenir un symbole identique au symbole de la case voisine déjà remplie"
                 )
             else:
                 reason = (
-                    f"cette case doit avoir le symbole opposé à une case déjà remplie avec {ICONS[value]}"
+                    "cette case doit contenir un symbole different de celui de la case voisine deja remplie"
                 )
             enqueue(nr, nc, forced_val, _step(
                 nr, nc, forced_val, "clue",
@@ -184,7 +185,7 @@ def propagate(
 
                 if vals.count(value) == 3:
                     raise Contradiction(_chain_for_step(causes.get((r, c)), derived_steps) + [_contradiction(
-                        f"trois {ICONS[value]} consécutifs en "
+                        f"trois cases {NAMES[value]} consécutives en "
                         f"({cells[0][0]+1},{cells[0][1]+1})–({cells[2][0]+1},{cells[2][1]+1})"
                     )])
 
@@ -195,12 +196,12 @@ def propagate(
                     axis = "la ligne" if dr == 0 else "la colonne"
                     if idx == 1:
                         reason = (
-                            f"si un {ICONS[value]} était placé sur cette case, "
+                            f"si un {NAMES[value]} était placé ici, "
                             f"cela créerait trois symboles identiques alignés dans {axis}"
                         )
                     else:
                         reason = (
-                            f"si un {ICONS[value]} était placé sur cette case, "
+                            f"si un {NAMES[value]} était placé ici, "
                             f"cela créerait trois symboles identiques alignés dans {axis}"
                         )
                     enqueue(nr, nc, OTHER[value], _step(
@@ -223,13 +224,13 @@ def propagate(
             count = line_vals.count(value)
             if count > size // 2:
                 raise Contradiction(_chain_for_step(causes.get((r, c)), derived_steps) + [_contradiction(
-                    f"la {label} aurait {count} {ICONS[value]} (max {size // 2})"
+                    f"la {label} aurait {count} cases {NAMES[value]} (max {size // 2})"
                 )])
             if count == size // 2:
                 subject = "cette ligne" if is_row else "cette colonne"
                 reason = (
-                    f"{subject} contient déjà {size // 2} {ICONS[value]}, "
-                    f"donc cette case doit être {ICONS[OTHER[value]]}"
+                    f"{subject} contient déjà {size // 2} cases remplies de ce type, "
+                    f"donc cette case doit contenir un {NAMES[OTHER[value]]}"
                 )
                 for idx in empty_idxs:
                     nr, nc = (r, idx) if is_row else (idx, c)
@@ -272,11 +273,11 @@ def _find_direct_clue_hint(grid: Grid, clues: Clues) -> dict | None:
         forced_val = ref_v if clue["type"] == "equal" else OTHER[ref_v]
         if clue["type"] == "equal":
             reason = (
-                f"cette case doit avoir le même symbole qu’une case déjà remplie avec {ICONS[ref_v]}"
+                "cette case doit contenir un symbole identique au symbole de la case voisine déjà remplie"
             )
         else:
             reason = (
-                f"cette case doit avoir le symbole opposé à une case déjà remplie avec {ICONS[ref_v]}"
+                "cette case doit contenir un symbole different de celui de la case voisine deja remplie"
             )
         step = _step(
             nr, nc, forced_val, "clue",
@@ -306,12 +307,12 @@ def _find_direct_consecutive_hint(grid: Grid, size: int) -> dict | None:
                     axis = "la ligne" if dr == 0 else "la colonne"
                     if idx == 1:
                         reason = (
-                            f"si un {ICONS[value]} était placé sur cette case, "
+                            f"si un {NAMES[value]} était placé ici, "
                             f"cela créerait trois symboles identiques alignés dans {axis}"
                         )
                     else:
                         reason = (
-                            f"si un {ICONS[value]} était placé sur cette case, "
+                            f"si un {NAMES[value]} était placé ici, "
                             f"cela créerait trois symboles identiques alignés dans {axis}"
                         )
                     step = _step(
@@ -336,7 +337,7 @@ def _find_direct_saturation_hint(grid: Grid, size: int) -> dict | None:
                 c = empties[0]
                 step = _step(
                     r, c, OTHER[value], "saturation",
-                    f"cette ligne contient déjà {half} {ICONS[value]}, donc cette case doit être {ICONS[OTHER[value]]}",
+                    f"cette ligne contient déjà {half} cases remplies de ce type, donc cette case doit contenir un {NAMES[OTHER[value]]}",
                 )
                 return _hint((r, c), OTHER[value], [step], "direct")
 
@@ -350,7 +351,7 @@ def _find_direct_saturation_hint(grid: Grid, size: int) -> dict | None:
                 r = empties[0]
                 step = _step(
                     r, c, OTHER[value], "saturation",
-                    f"cette colonne contient déjà {half} {ICONS[value]}, donc cette case doit être {ICONS[OTHER[value]]}",
+                    f"cette colonne contient déjà {half} cases remplies de ce type, donc cette case doit contenir un {NAMES[OTHER[value]]}",
                 )
                 return _hint((r, c), OTHER[value], [step], "direct")
 
@@ -396,7 +397,7 @@ def _find_direct_length6_equal_edge_hint(grid: Grid, clues: Clues, size: int) ->
                 value = OTHER[vals[0]]
                 step = _step(
                     tr, tc, value, "pattern6",
-                    f"dans la {label}, la première case vaut déjà {ICONS[vals[0]]} et les positions 5 et 6 doivent être égales, donc la position 5 doit être {ICONS[value]}",
+                    f"dans la {label}, la première case est déjà {NAMES[vals[0]]} et les positions 5 et 6 doivent être égales, donc la position 5 doit être {NAMES[value]}",
                 )
                 return _hint((tr, tc), value, [step], "direct")
 
@@ -412,8 +413,8 @@ def _find_direct_length6_equal_edge_hint(grid: Grid, clues: Clues, size: int) ->
                 value = OTHER[vals[5]]
                 step = _step(
                     tr, tc, value, "pattern6",
-                    f"cette case appartient à une paire de cases égales ; si cette paire valait {ICONS[vals[5]]}, "
-                    f"les cases restantes ne pourraient plus être que des {ICONS[value]}, "
+                    f"cette case appartient à une paire de cases égales ; si cette paire valait {NAMES[vals[5]]}, "
+                    f"les cases restantes ne pourraient plus être que {NAMES[value]}, "
                     f"ce qui créerait trois symboles identiques alignés",
                 )
                 return _hint((tr, tc), value, [step], "direct")
@@ -446,7 +447,7 @@ def _find_direct_equal_pair_next_to_symbol_hint(grid: Grid, clues: Clues, size: 
                     value = OTHER[left_val]
                     step = _step(
                         mr, mc, value, "clue_pattern",
-                        f"cette case appartient à une paire de cases égales ; si cette paire valait {ICONS[left_val]}, cela créerait trois symboles identiques alignés",
+                        f"cette case appartient à une paire de cases égales ; si cette paire valait {NAMES[left_val]}, cela créerait trois symboles identiques alignés",
                     )
                     return _hint((mr, mc), value, [step], "direct")
 
@@ -460,7 +461,7 @@ def _find_direct_equal_pair_next_to_symbol_hint(grid: Grid, clues: Clues, size: 
                     value = OTHER[right_val]
                     step = _step(
                         mr, mc, value, "clue_pattern",
-                        f"cette case appartient à une paire de cases égales ; si cette paire valait {ICONS[right_val]}, cela créerait trois symboles identiques alignés",
+                        f"cette case appartient à une paire de cases égales ; si cette paire valait {NAMES[right_val]}, cela créerait trois symboles identiques alignés",
                     )
                     return _hint((mr, mc), value, [step], "direct")
 
@@ -531,14 +532,14 @@ def _find_direct_length6_pattern_hint(grid: Grid, size: int) -> dict | None:
                     axis = "la ligne" if is_row else "la colonne"
                     step = _step(
                         tr, tc, OTHER[value], "pattern6",
-                        f"si un {ICONS[value]} était placé sur cette case, cela créerait trois symboles identiques alignés dans {axis}",
+                        f"si un {NAMES[value]} était placé ici, cela créerait trois symboles identiques alignés dans {axis}",
                     )
                 else:
                     axis = "cette ligne" if is_row else "cette colonne"
                     step = _step(
                         tr, tc, OTHER[value], "pattern6",
-                        f"si un {ICONS[value]} était placé sur cette case, "
-                        f"les cases restantes ne pourraient plus être que des {ICONS[OTHER[value]]} dans {axis}, "
+                        f"si un {NAMES[value]} était placé ici, "
+                        f"les cases restantes ne pourraient plus être que {NAMES[OTHER[value]]} dans {axis}, "
                         f"ce qui créerait trois symboles identiques alignés",
                     )
                 return _hint((tr, tc), OTHER[value], [step], "direct")

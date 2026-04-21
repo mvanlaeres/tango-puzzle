@@ -36,7 +36,9 @@
         Réinitialiser
       </button>
     </div>
-    <div id="board"></div>
+    <div id="board-shell">
+      <div id="board"></div>
+    </div>
     <div id="status"></div>
 
     <div id="left-col">
@@ -53,13 +55,13 @@
 
     <div id="right-col">
       <div id="click-legend">
-        <div class="click-item"><span class="click-n">1 clic</span><span class="sun">☀</span></div>
-        <div class="click-item"><span class="click-n">2 clics</span><span class="moon">☾</span></div>
+        <div class="click-item"><span class="click-n">1 clic</span><span class="token token-S token-inline" aria-label="jaune"></span></div>
+        <div class="click-item"><span class="click-n">2 clics</span><span class="token token-L token-inline" aria-label="bleu"></span></div>
       </div>
       <div id="rules">
         <h2>Règles</h2>
         <ul>
-          <li>Chaque ligne et colonne contient autant de <span class="sun">☀</span> que de <span class="moon">☾</span></li>
+          <li>Chaque ligne et colonne contient autant de <span class="token token-S token-inline" aria-label="jaune"></span> que de <span class="token token-L token-inline" aria-label="bleu"></span></li>
           <li>Pas plus de 2 symboles identiques côte à côte</li>
           <li><span class="rule-sign">=</span> les deux cases ont le <em>même</em> symbole</li>
           <li><span class="rule-sign">×</span> les deux cases ont des symboles <em>différents</em></li>

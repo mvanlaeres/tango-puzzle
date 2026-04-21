@@ -203,8 +203,8 @@ def test_propagate_pending_conflict_uses_deduced_wording():
         propagate(grid, clues, 6, [(0, 0, "S")])
 
     assert excinfo.value.steps[-1]["reason"] == (
-        "la case (1,2) devrait valoir ☾, "
-        "mais on a déjà déduit ☀ pour cette case"
+        "la case (1,2) devrait valoir bleu, "
+        "mais on a déjà déduit jaune pour cette case"
     )
 
 
@@ -399,7 +399,7 @@ def test_find_hint_finds_equal_pair_next_to_symbol_pattern():
     assert hint["steps"][0]["reason_type"] == "clue_pattern"
     assert hint["steps"][0]["reason"] == (
         "cette case appartient à une paire de cases égales ; "
-        "si cette paire valait ☀, cela créerait trois symboles identiques alignés"
+        "si cette paire valait jaune, cela créerait trois symboles identiques alignés"
     )
 
 
