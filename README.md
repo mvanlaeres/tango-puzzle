@@ -4,7 +4,7 @@ Un jeu de puzzle inspiré du Tango de LinkedIn, jouable dans le navigateur et pr
 
 ## Principe du jeu
 
-La grille (4x4 ou 6x6) doit être remplie avec deux symboles — **S** (Soleil) et **L** (Lune) — en respectant ces règles :
+La grille doit être remplie avec deux symboles — **S** (Soleil) et **L** (Lune) — en respectant ces règles :
 
 - Chaque ligne et chaque colonne contient autant de S que de L.
 - Pas plus de 2 symboles identiques consécutifs (horizontalement ou verticalement).
@@ -45,8 +45,7 @@ pip install -r requirements.txt
 ### Démarrer le serveur
 
 ```bash
-cd backend
-uvicorn main:app --reload
+uvicorn backend.main:app --reload
 ```
 
 L'interface est accessible sur [http://localhost:8000](http://localhost:8000).
