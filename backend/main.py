@@ -5,9 +5,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from puzzle.generator import generate_puzzle
-from puzzle.validator import validate
-from puzzle.hint import find_hint
+from backend.puzzle.generator import generate_puzzle
+from backend.puzzle.validator import validate
+from backend.puzzle.hint import find_hint
 
 app = FastAPI(title="Tango Puzzle API")
 

@@ -1,4 +1,4 @@
-from puzzle.generator import Grid, Clues
+from backend.puzzle.generator import Grid, Clues
 
 
 def validate(grid: Grid, clues: Clues, size: int, partial: bool) -> dict:
