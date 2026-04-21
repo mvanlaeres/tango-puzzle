@@ -2,12 +2,53 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Tango</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tango Puzzle — Jeu de logique gratuit en ligne</title>
+  <meta name="description" content="Jouez à Tango, un puzzle de logique à deux symboles. Remplissez la grille en respectant 3 règles simples. 4 niveaux de difficulté, indices disponibles. Gratuit et sans inscription.">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#f0f0f0">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Tango Puzzle — Jeu de logique gratuit en ligne">
+  <meta property="og:description" content="Puzzle de logique à deux symboles, 4 niveaux de difficulté. Gratuit, sans inscription.">
+  <meta property="og:locale" content="fr_FR">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Tango Puzzle — Jeu de logique gratuit en ligne">
+  <meta name="twitter:description" content="Puzzle de logique à deux symboles, 4 niveaux de difficulté. Gratuit, sans inscription.">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+
+  <!-- JSON-LD structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Tango Puzzle",
+    "description": "Jeu de logique à deux symboles. Remplissez la grille en respectant les règles : équilibre par ligne et colonne, pas plus de 2 symboles identiques consécutifs, indices de contraintes.",
+    "applicationCategory": "GameApplication",
+    "genre": "Puzzle",
+    "operatingSystem": "Web",
+    "inLanguage": "fr",
+    "isAccessibleForFree": true,
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "EUR"
+    }
+  }
+  </script>
+
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-<div id="game-wrapper">
+<h1 class="sr-only">Tango Puzzle — Jeu de logique</h1>
+
+<main id="game-wrapper">
   <div id="play-area">
     <div id="board-header">
       <div id="timer-container">
@@ -79,6 +120,8 @@
   </div>
 </div>
 
-<script src="/static/app.js"></script>
+</main>
+
+<script src="/static/app.js" defer></script>
 </body>
 </html>

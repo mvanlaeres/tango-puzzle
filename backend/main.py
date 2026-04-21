@@ -2,7 +2,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel
 
 from backend.puzzle.generator import generate_puzzle
@@ -14,6 +14,20 @@ app = FastAPI(title="Tango Puzzle API")
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+
+
+@app.get("/robots.txt", include_in_schema=False)
+def robots():
+    return PlainTextResponse("User-agent: *\nAllow: /\nSitemap: /sitemap.xml\n")
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap():
+    content = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    content += "  <url>\n    <loc>/</loc>\n    <changefreq>monthly</changefreq>\n    <priority>1.0</priority>\n  </url>\n"
+    content += "</urlset>\n"
+    return PlainTextResponse(content, media_type="application/xml")
 
 
 @app.get("/health")
