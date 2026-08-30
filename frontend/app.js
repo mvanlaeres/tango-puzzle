@@ -232,11 +232,13 @@ function render() {
   const { size, grid, fixed, clues } = state;
   const shell  = document.getElementById('board-shell');
   const slots  = 2 * size - 1;
-  const cellPx = 64;
-  const cluePx = 20;
 
+  // Les tailles viennent du CSS : le JS ne pose que l'alternance
+  // case / gouttière. La case est ce qui reste du plateau une fois les
+  // gouttières retirées — un pourcentage, donc jamais lié au viewport.
+  const cellTrack = `calc((100% - ${size - 1} * var(--clue)) / ${size})`;
   const tpl = Array.from({ length: slots }, (_, i) =>
-    i % 2 === 0 ? `${cellPx}px` : `${cluePx}px`
+    i % 2 === 0 ? cellTrack : 'var(--clue)'
   ).join(' ');
   shell.innerHTML = '<div id="board"></div>';
   const nextBoard = document.getElementById('board');
@@ -293,8 +295,6 @@ function render() {
         }
       } else {
         el.className = 'clue-corner';
-        el.style.width  = `${cluePx}px`;
-        el.style.height = `${cluePx}px`;
       }
 
       activeBoard.appendChild(el);
@@ -607,5 +607,16 @@ function setupDifficultyDropdown() {
   });
 }
 
+// Les règles sont un <details> : replié au doigt, déplié sur grand écran.
+function setupRulesDisclosure() {
+  const rules = document.getElementById('rules');
+  if (!rules) return;
+  const wide = window.matchMedia('(min-width: 1060px)');
+  const sync = () => { rules.open = wide.matches; };
+  wide.addEventListener('change', sync);
+  sync();
+}
+
 setupDifficultyDropdown();
+setupRulesDisclosure();
 newPuzzle();

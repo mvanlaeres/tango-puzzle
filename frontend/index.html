@@ -53,7 +53,7 @@
         <span id="timer-icon">⏱</span>
         <span id="timer">00:00</span>
       </div>
-      <div id="difficulty-banner" tabindex="0" role="combobox" aria-haspopup="listbox" aria-expanded="false">
+      <div id="difficulty-banner" tabindex="0" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-label="Niveau de difficulté">
         <span class="difficulty-label">Niveau</span>
         <span id="difficulty-value">Moyen</span>
         <svg class="difficulty-chevron" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -67,12 +67,12 @@
           <li role="option" data-value="extreme">Extrême</li>
         </ul>
       </div>
-      <button id="btn-reset" onclick="resetPuzzle()">
+      <button id="btn-reset" onclick="resetPuzzle()" aria-label="Réinitialiser la grille">
         <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M2.5 8a5.5 5.5 0 1 0 1.1-3.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-          <path d="M2.5 4.5V8H6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 8a6 6 0 1 0 6-6 6.5 6.5 0 0 0-4.49 1.83L2 5.33" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 2v3.33h3.33" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        Réinitialiser
+        <span class="btn-label">Réinitialiser</span>
       </button>
     </div>
     <div id="board-shell">
@@ -97,15 +97,15 @@
         <div class="click-item"><span class="click-n">1 clic</span><span class="token token-S token-inline" aria-label="jaune"></span></div>
         <div class="click-item"><span class="click-n">2 clics</span><span class="token token-L token-inline" aria-label="bleu"></span></div>
       </div>
-      <div id="rules">
-        <h2>Règles</h2>
+      <details id="rules">
+        <summary><h2>Règles</h2></summary>
         <ul>
           <li>Chaque ligne et colonne contient autant de <span class="token token-S token-inline" aria-label="jaune"></span> que de <span class="token token-L token-inline" aria-label="bleu"></span></li>
           <li>Pas plus de 2 symboles identiques côte à côte</li>
           <li><span class="rule-sign">=</span> les deux cases ont le <em>même</em> symbole</li>
           <li><span class="rule-sign">×</span> les deux cases ont des symboles <em>différents</em></li>
         </ul>
-      </div>
+      </details>
     </div>
   </div>
 </div>

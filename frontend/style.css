@@ -1,5 +1,50 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Tokens de dimension ─────────────────────────────────────────────
+   Le JS ne calcule aucune taille : il pose la structure de la grille et
+   lit ces variables. Tout le dimensionnement se décide ici.            */
+
+:root {
+  --page-pad: 2rem;          /* padding du body */
+  --btn-h: 39px;             /* hauteur des pilules (boutons, bandeau) */
+  --clue: 20px;              /* largeur d'une gouttière d'indice */
+  --cell-max: 64px;          /* taille de case sur grand écran */
+  --clue-font: 1.3rem;       /* taille du = / x */
+  --clue-notch: calc(var(--clue-font) * 0.53);  /* trou du trait autour du signe */
+  --bleed: 10px;             /* débord des cases hors de leur piste */
+
+  /* Largeur du plateau à taille pleine : 6 cases + 5 gouttières + les
+     débords + les bordures. En dessous, il prend 100% de son conteneur.
+     Aucune unité viewport ici : `100vw` compte la barre de défilement et
+     provoque un débordement horizontal dès qu'elle est visible.         */
+  --board-max: calc(
+    6 * var(--cell-max) + 5 * var(--clue) + 2 * var(--bleed) + 4px
+  );
+}
+
+/* Garde-fou : rien ne doit jamais déborder en largeur. Le dimensionnement
+   ci-dessus le garantit déjà ; ceci empêche une régression future de se
+   traduire par un scroll horizontal.                                    */
+html, body {
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+html {
+  /* iOS gonfle le texte en paysage sans ca */
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Supprime le double-tap-to-zoom (et le delai de 300ms qui va avec) sur
+   tout ce qui se tape, sans desactiver le pinch-zoom de la page.        */
+.cell,
+button,
+summary,
+#difficulty-banner,
+#difficulty-options li {
+  touch-action: manipulation;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -16,11 +61,13 @@ body {
   font-family: sans-serif;
   background: #f0f0f0;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  justify-content: safe center;
+  padding: var(--page-pad);
   gap: 1.5rem;
 }
 
@@ -29,35 +76,27 @@ body {
   flex-direction: column;
   gap: 1rem;
   align-items: center;
+  width: 100%;
+  max-width: var(--board-max);
 }
 
 #play-area {
   position: relative;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 1rem;
   align-items: stretch;
 }
 
-#left-col {
-  position: absolute;
-  right: calc(100% + 2rem);
-  top: calc(39px + 4.5rem);
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  width: 230px;
-}
-
+/* Par defaut (mobile) les deux colonnes sont dans le flux, sous le
+   plateau. Le placement lateral n'existe qu'au-dela de 960px.          */
+#left-col,
 #right-col {
-  position: absolute;
-  left: calc(100% + 2rem);
-  top: 50%;
-  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  width: 230px;
+  width: 100%;
 }
 
 #click-legend {
@@ -166,7 +205,7 @@ body {
   border-radius: 10px;
   padding: 0 0.75rem 0 0.85rem;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  height: 39px;
+  height: var(--btn-h);
   min-width: 0;
   cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -247,9 +286,11 @@ body {
   gap: 0.5rem;
 }
 
-#difficulty-options li:hover {
-  background: #f5f5f5;
-  color: #222;
+@media (hover: hover) {
+  #difficulty-options li:hover {
+    background: #f5f5f5;
+    color: #222;
+  }
 }
 
 #difficulty-options li[aria-selected="true"] {
@@ -294,15 +335,18 @@ body {
 #board {
   position: relative;
   display: grid;
+  width: 100%;
+  aspect-ratio: 1;   /* hauteur définie : les pistes en % peuvent résoudre */
   background: #fff;
   border: 2px solid #bbb;
   border-radius: 8px;
   overflow: hidden;
-  padding: 10px;
+  padding: var(--bleed);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .cell {
-  margin: -10px;
+  margin: calc(-1 * var(--bleed));
   background: transparent;
   display: flex;
   align-items: center;
@@ -357,8 +401,10 @@ body {
 }
 
 .token-cell {
-  width: 22px;
-  height: 22px;
+  /* 22 / (64 + 2 x 10) : proportion de la case, débords compris */
+  width: 26.2%;
+  height: auto;
+  aspect-ratio: 1;
 }
 
 .token-inline {
@@ -369,11 +415,13 @@ body {
 
 .cell.fixed { background: transparent; cursor: default; }
 .cell.error { background: #fee2e2; color: #dc2626; }
-.cell.error:hover { background: #fecaca; }
+@media (hover: hover) {
+  .cell.error:hover { background: #fecaca; }
+}
 
 .clue-h {
-  width: 20px;
-  height: 64px;
+  width: 100%;
+  height: 100%;
   background: transparent;
   position: relative;
   z-index: 2;
@@ -397,7 +445,7 @@ body {
 .clue-h.clue-equal::before,
 .clue-h.clue-opposite::before {
   bottom: auto;
-  height: calc(50% - 11px);
+  height: calc(50% - var(--clue-notch));
 }
 
 .clue-h.clue-equal::after,
@@ -405,7 +453,7 @@ body {
   content: '';
   position: absolute;
   left: 50%;
-  top: calc(50% + 11px);
+  top: calc(50% + var(--clue-notch));
   bottom: 0;
   width: 1.5px;
   background: #bbb;
@@ -413,8 +461,8 @@ body {
 }
 
 .clue-v {
-  width: 64px;
-  height: 20px;
+  width: 100%;
+  height: 100%;
   background: transparent;
   position: relative;
   z-index: 2;
@@ -438,7 +486,7 @@ body {
 .clue-v.clue-equal::before,
 .clue-v.clue-opposite::before {
   right: auto;
-  width: calc(50% - 11px);
+  width: calc(50% - var(--clue-notch));
 }
 
 .clue-v.clue-equal::after,
@@ -446,7 +494,7 @@ body {
   content: '';
   position: absolute;
   top: 50%;
-  left: calc(50% + 11px);
+  left: calc(50% + var(--clue-notch));
   right: 0;
   height: 1.5px;
   background: #bbb;
@@ -486,7 +534,7 @@ body {
   position: relative;
   z-index: 1;
   padding: 0 2px;
-  font-size: 1.3rem;
+  font-size: var(--clue-font);
   font-weight: 300;
   color: #888;
 }
@@ -497,7 +545,7 @@ button {
   align-items: center;
   gap: 0.4rem;
   padding: 0 0.9rem;
-  height: 39px;
+  height: var(--btn-h);
   font-size: 0.88rem;
   font-weight: 600;
   border-radius: 10px;
@@ -519,10 +567,12 @@ button svg {
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-#btn-reset:hover, #btn-hint:hover:not(:disabled) {
-  background: #fafafa;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
-  color: #222;
+@media (hover: hover) {
+  #btn-reset:hover, #btn-hint:hover:not(:disabled) {
+    background: #fafafa;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+    color: #222;
+  }
 }
 
 #btn-reset:disabled, #btn-hint:disabled {
@@ -541,7 +591,9 @@ button svg {
   justify-content: center;
 }
 
-#btn-play-again:hover { background: #444; }
+@media (hover: hover) {
+  #btn-play-again:hover { background: #444; }
+}
 
 #hint-count {
   font-size: 0.72rem;
@@ -601,6 +653,7 @@ button svg {
   line-height: 1.5;
   max-height: 320px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   background: #fff;
   border: 1px solid #ddd;
   border-radius: 10px;
@@ -783,4 +836,105 @@ button svg {
 
 #btn-play-again {
   min-width: 120px;
+}
+
+/* ── Bloc Règles repliable ───────────────────────────────────────────
+   <details> : replié sur mobile, ouvert (et sans chevron) sur desktop,
+   l'attribut `open` étant piloté par une media query côté JS.          */
+
+#rules > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+#rules > summary::-webkit-details-marker { display: none; }
+
+#rules > summary h2 { margin-bottom: 0; }
+
+#rules > summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-right: 1.75px solid #bbb;
+  border-bottom: 1.75px solid #bbb;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+#rules[open] > summary::after {
+  transform: translateY(1px) rotate(-135deg);
+}
+
+#rules[open] > summary { margin-bottom: 0.75rem; }
+
+/* ── Mobile ──────────────────────────────────────────────────────────
+   Le layout par défaut EST le layout mobile ; ces règles ne font que
+   resserrer les marges et agrandir les cibles tactiles.                */
+
+@media (max-width: 639px) {
+  :root {
+    --page-pad: 0.75rem;
+    --btn-h: 44px;          /* cible tactile minimale */
+    --clue: 15px;
+    --clue-font: 1.05rem;
+    --bleed: 7px;
+  }
+
+  body {
+    justify-content: flex-start;   /* repli : jamais de rognage */
+    justify-content: safe center;
+    gap: 1rem;
+  }
+
+  /* Le bandeau ne tient pas en entier : on garde les icônes et la valeur,
+     les libellés redondants passent en aria-label. */
+  #board-header { gap: 0.5rem; }
+
+  #btn-reset {
+    width: var(--btn-h);
+    padding: 0;
+    justify-content: center;
+  }
+
+  /* Sans libellé à côté, l'icône seule a besoin d'un peu plus de corps */
+  #btn-reset svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  #btn-reset .btn-label,
+  .difficulty-label { display: none; }
+
+  #hint-panel { max-height: 45vh; }
+
+  .modal-overlay { padding: 1rem; }
+}
+
+/* ── Desktop ─────────────────────────────────────────────────────────
+   Seul endroit où les panneaux latéraux flottent de part et d'autre
+   du plateau.                                                          */
+
+@media (min-width: 1060px) {
+  #left-col {
+    position: absolute;
+    right: calc(100% + 2rem);
+    top: calc(var(--btn-h) + 4.5rem);
+    width: 230px;
+  }
+
+  #right-col {
+    position: absolute;
+    left: calc(100% + 2rem);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 230px;
+  }
+
+  #rules > summary { cursor: default; }
+  #rules > summary::after { display: none; }
 }
