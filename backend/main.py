@@ -1,4 +1,6 @@
+import hashlib
 from pathlib import Path
+from urllib.parse import parse_qs
 
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -13,7 +15,43 @@ app = FastAPI(title="Tango Puzzle API")
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
-app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+# Empreinte du contenu des assets, calculée au démarrage. Elle sert de
+# numéro de version dans leur URL : à chaque déploiement qui les modifie,
+# l'URL change et le navigateur est obligé de retélécharger. Sans ça, un
+# navigateur sans en-tête Cache-Control applique une durée de fraîcheur
+# heuristique et peut servir l'ancienne version pendant des jours.
+VERSIONED_ASSETS = ("style.css", "app.js")
+
+
+def _asset_version() -> str:
+    digest = hashlib.sha256()
+    for name in VERSIONED_ASSETS:
+        digest.update((FRONTEND_DIR / name).read_bytes())
+    return digest.hexdigest()[:8]
+
+
+ASSET_VERSION = _asset_version()
+
+
+class VersionedStaticFiles(StaticFiles):
+    """Sert les assets avec une politique de cache explicite.
+
+    Une URL portant un ?v=... désigne un contenu figé : elle peut être
+    gardée indéfiniment. Sans version (le favicon), on revalide à chaque
+    fois — c'est peu coûteux grâce à l'ETag, et jamais périmé.
+    """
+
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        query = parse_qs(scope.get("query_string", b"").decode("latin-1"))
+        if query.get("v"):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.mount("/static", VersionedStaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 
 @app.get("/robots.txt", include_in_schema=False)
@@ -37,7 +75,12 @@ def health():
 
 @app.get("/")
 def index():
-    return HTMLResponse(content=(FRONTEND_DIR / "index.html").read_text(encoding="utf-8"))
+    html = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
+    for name in VERSIONED_ASSETS:
+        html = html.replace(f"/static/{name}", f"/static/{name}?v={ASSET_VERSION}")
+    # La page elle-même porte les URLs versionnées : elle ne doit jamais
+    # être servie depuis le cache sans être revalidée.
+    return HTMLResponse(content=html, headers={"Cache-Control": "no-cache"})
 
 
 DIFFICULTY = {
